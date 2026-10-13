@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgroGestion
 
-## Getting Started
+Application web de gestion d'une entreprise agroalimentaire : catalogue, achats, ventes (caisse),
+stocks par lot (FEFO), production, statistiques et gestion des utilisateurs par rôle.
+Interface en français, utilisable sur ordinateur, tablette et téléphone.
 
-First, run the development server:
+## Stack
+
+Next.js (App Router) · TypeScript · Tailwind CSS · Prisma 7 + PostgreSQL · Auth.js · Zod · Recharts
+
+## Installation
+
+Prérequis : Node.js 20+ et un serveur PostgreSQL.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env     # puis renseigner DATABASE_URL et AUTH_SECRET
+npx prisma migrate dev   # crée les tables
+npx prisma db seed       # données de test (comptes, dépôt, catégories, unités)
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`AUTH_SECRET` se génère avec `npx auth secret`. Si le mot de passe de la base contient des
+caractères spéciaux (`* ! @ #`…), il doit être encodé dans `DATABASE_URL`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Après chaque modification de `prisma/schema.prisma`, relancer `npx prisma generate`
+puis redémarrer le serveur de développement.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Comptes de test (seed)
 
-## Learn More
+Mot de passe commun : `Test1234!` (à ne jamais utiliser en production).
 
-To learn more about Next.js, take a look at the following resources:
+| Rôle | Email |
+|---|---|
+| Administrateur | admin@agro.test |
+| Gérant | gerant@agro.test |
+| Magasinier | magasinier@agro.test |
+| Caissier | caissier@agro.test |
+| Responsable production | production@agro.test |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Règles métier principales
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Montants en FCFA entiers ; quantités en `Decimal(14,3)`.
+- Sorties de stock en FEFO (péremption la plus proche d'abord), tracées par lot.
+- Le stock ne devient jamais négatif ; chaque variation crée un `MouvementStock`.
+- Opérations sensibles dans une transaction ; aucune suppression physique des pièces
+  (annulation avec motif et auteur) ; actions sensibles inscrites au journal.
+- Droits contrôlés côté serveur dans chaque action ; le caissier ne voit ni prix d'achat ni marges.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Détail complet dans [CLAUDE.md](CLAUDE.md).

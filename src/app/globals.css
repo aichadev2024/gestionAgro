@@ -1,26 +1,27 @@
 @import "tailwindcss";
 
+/* Palette « alimentation » : vert forêt (légumes), orange récolte (agrumes, épices),
+   crème (céréales), rouge tomate pour les alertes. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf6ec;
+  --foreground: #1f2a1c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand: #1f5d34;
+  --color-brand-dark: #14401f;
+  --color-brand-soft: #e8f3ea;
+  --color-accent: #f08a24;
+  --color-accent-soft: #fdeccf;
+  --color-tomate: #d6402b;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
