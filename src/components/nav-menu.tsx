@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "@/components/logo";
 import type { ModuleMenu } from "@/lib/roles";
 
 export function NavMenu({
@@ -20,19 +21,7 @@ export function NavMenu({
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 pt-4 md:px-6 print:hidden">
       <header className="flex items-center justify-between rounded-2xl bg-brand px-5 py-5 shadow-lg md:px-8 md:py-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-accent text-lg font-black text-white">
-            A
-          </div>
-          <div className="leading-tight">
-            <div className="text-xl font-extrabold tracking-wide text-white md:text-2xl">
-              <span className="text-accent">A</span>GRO
-            </div>
-            <div className="text-[10px] font-bold tracking-[0.35em] text-accent">
-              GESTION
-            </div>
-          </div>
-        </div>
+        <Logo variante="sombre" taille={46} />
         <span className="rounded-full border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent">
           {libelleRole}
         </span>

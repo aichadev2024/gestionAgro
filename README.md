@@ -1,4 +1,6 @@
-# AgroGestion
+# Sahelia
+
+> Gestion agroalimentaire · par Aïcha
 
 Application web de gestion d'une entreprise agroalimentaire : catalogue, achats, ventes (caisse),
 stocks par lot (FEFO), production, statistiques et gestion des utilisateurs par rôle.

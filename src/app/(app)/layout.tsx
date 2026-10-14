@@ -4,6 +4,7 @@ import { utilisateurCourant } from "@/lib/session";
 import { LIBELLE_ROLE, menuPourRole } from "@/lib/roles";
 import { deconnexion } from "@/server/actions/auth";
 import { NavMenu } from "@/components/nav-menu";
+import { MARQUE } from "@/lib/marque";
 
 async function Coquille({ children }: { children: React.ReactNode }) {
   const user = await utilisateurCourant();
@@ -18,6 +19,9 @@ async function Coquille({ children }: { children: React.ReactNode }) {
       <main className="mx-auto w-full max-w-[1400px] px-4 py-6 md:px-6">
         <Suspense fallback={<p className="text-gray-500">Chargement…</p>}>{children}</Suspense>
       </main>
+      <footer className="pb-6 text-center text-xs text-gray-400 print:hidden">
+        {MARQUE.nom} {MARQUE.signature}
+      </footer>
     </div>
   );
 }

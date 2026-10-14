@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigerAccesModule } from "@/lib/acces-page";
 import { formatDate, formatFCFA } from "@/lib/format";
+import { Logo } from "@/components/logo";
 import { BoutonImprimer } from "@/components/bouton-imprimer";
 import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
 import { annulerVenteAction } from "@/server/actions/ventes";
@@ -35,8 +36,8 @@ export default async function PageFacture({ params }: PageProps<"/ventes/[id]">)
       <article className="mx-auto max-w-2xl rounded-2xl border border-gray-100 bg-white p-6 shadow-sm md:p-8 print:border-0 print:shadow-none">
         <header className="flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
           <div>
-            <div className="text-xl font-extrabold text-brand">AgroGestion</div>
-            <div className="text-sm text-gray-500">Facture</div>
+            <Logo variante="clair" taille={40} sousTitre={false} />
+            <div className="mt-1 text-sm text-gray-500">Facture</div>
           </div>
           <div className="text-right text-sm">
             <div className="font-mono font-bold">{vente.numero}</div>

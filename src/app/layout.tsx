@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { MARQUE } from "@/lib/marque";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AgroGestion",
-  description: "Gestion d'une entreprise agroalimentaire : stocks, achats, ventes",
+  title: `${MARQUE.nom} · ${MARQUE.slogan}`,
+  description: "Stocks, achats, ventes et production de votre entreprise agroalimentaire",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
