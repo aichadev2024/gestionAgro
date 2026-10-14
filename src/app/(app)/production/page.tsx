@@ -5,13 +5,15 @@ import { ProductionForm } from "@/components/production-form";
 import { RecetteForm } from "@/components/recette-form";
 import { listerProduits } from "@/server/services/catalogue";
 import { listerProductions, listerRecettes } from "@/server/services/production";
+import { listerDepots } from "@/server/services/stocks";
 
 export default async function PageProduction() {
   await exigerAccesModule("/production");
-  const [recettes, productions, produits] = await Promise.all([
+  const [recettes, productions, produits, depots] = await Promise.all([
     listerRecettes(),
     listerProductions(),
     listerProduits(),
+    listerDepots(),
   ]);
 
   return (
@@ -26,6 +28,7 @@ export default async function PageProduction() {
           </p>
         ) : (
           <ProductionForm
+            depots={depots.map((d) => ({ id: d.id, nom: d.nom }))}
             recettes={recettes.map((r) => ({
               id: r.id,
               nom: r.nom,

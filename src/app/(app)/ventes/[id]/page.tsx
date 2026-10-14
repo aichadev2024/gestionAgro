@@ -6,6 +6,8 @@ import { Logo } from "@/components/logo";
 import { BoutonImprimer } from "@/components/bouton-imprimer";
 import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
 import { annulerVenteAction } from "@/server/actions/ventes";
+import { creerRetourAction } from "@/server/actions/retours";
+import { quantitesRetournables, retoursDeVente } from "@/server/services/retours";
 import { trouverVente } from "@/server/services/ventes";
 
 const LIBELLE_MODE = {
@@ -21,8 +23,14 @@ export default async function PageFacture({ params }: PageProps<"/ventes/[id]">)
   const vente = await trouverVente(id);
   if (!vente) notFound();
 
-  const peutAnnuler =
+  const [retours, retournables] = await Promise.all([
+    retoursDeVente(vente.id),
+    quantitesRetournables(vente.id),
+  ]);
+  const peutRetourner =
     vente.statut === "VALIDEE" && (user.role === "ADMIN" || user.role === "GERANT");
+  const peutAnnuler =
+    vente.statut === "VALIDEE" && (user.role === "ADMIN" || user.role === "GERANT") && retours.length === 0;
 
   return (
     <div className="space-y-6">
@@ -30,7 +38,23 @@ export default async function PageFacture({ params }: PageProps<"/ventes/[id]">)
         <Link href="/ventes" className="text-sm text-gray-500 hover:underline">
           ← Ventes
         </Link>
-        <BoutonImprimer />
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/api/factures/${vente.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-soft"
+          >
+            Facture PDF
+          </a>
+          <Link
+            href={`/ventes/${vente.id}/ticket`}
+            className="rounded-lg border border-brand px-5 py-2.5 text-sm font-semibold text-brand hover:bg-brand-soft"
+          >
+            Ticket de caisse
+          </Link>
+          <BoutonImprimer />
+        </div>
       </div>
 
       <article className="mx-auto max-w-2xl rounded-2xl border border-gray-100 bg-white p-6 shadow-sm md:p-8 print:border-0 print:shadow-none">
@@ -92,6 +116,68 @@ export default async function PageFacture({ params }: PageProps<"/ventes/[id]">)
           <p className="mt-4 text-sm text-tomate">Motif d&apos;annulation : {vente.motifAnnulation}</p>
         )}
       </article>
+
+      {retours.length > 0 && (
+        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:p-6 print:hidden">
+          <h2 className="mb-2 text-lg font-bold text-brand">Retours et avoirs</h2>
+          <ul className="space-y-1 text-sm">
+            {retours.map((r) => (
+              <li key={r.id}>
+                <span className="font-mono text-xs">{r.numero}</span> · {formatDate(r.creeLe)} ·{" "}
+                <strong>{formatFCFA(r.total)}</strong> remboursés ({LIBELLE_MODE[r.modeRemboursement]}
+                {r.remisEnStock ? ", remis en stock" : ", non remis en stock"}) · {r.motif}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {peutRetourner && [...retournables.values()].some((q) => q.gt(0)) && (
+        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:p-6 print:hidden">
+          <h2 className="mb-1 text-lg font-bold text-brand">Retour client</h2>
+          <p className="mb-3 text-sm text-gray-500">
+            Indiquez les quantités rendues. Le remboursement tient compte d&apos;une éventuelle remise.
+          </p>
+          <Formulaire action={creerRetourAction.bind(null, vente.id)} libelleBouton="Enregistrer le retour">
+            <div className="space-y-2">
+              {vente.lignes.map((l) => {
+                const max = retournables.get(l.id);
+                return (
+                  <div key={l.id} className="grid items-end gap-3 rounded-xl bg-brand-soft/50 p-3 sm:grid-cols-[2fr_1fr]">
+                    <input type="hidden" name="ligneVenteId" value={l.id} />
+                    <div className="text-sm">
+                      <div className="font-semibold">{l.produit.nom}</div>
+                      <div className="text-gray-500">
+                        Retournable : {max?.toString() ?? "0"} {l.produit.unite.symbole}
+                      </div>
+                    </div>
+                    <Champ label="Quantité rendue">
+                      <input name={`quantite_${l.id}`} inputMode="decimal" defaultValue="0" className={classeChamp} />
+                    </Champ>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Champ label="Remboursement">
+                <select name="mode" className={classeChamp} defaultValue="ESPECES">
+                  <option value="ESPECES">Espèces</option>
+                  <option value="ORANGE_MONEY">Orange Money</option>
+                  <option value="MOOV_MONEY">Moov Money</option>
+                  {vente.client && <option value="CREDIT">Réduire la dette du client</option>}
+                </select>
+              </Champ>
+              <Champ label="Motif (obligatoire)">
+                <input name="motif" required className={classeChamp} />
+              </Champ>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" name="remisEnStock" defaultChecked className="h-4 w-4" />
+              Remettre les produits en stock (décochez s&apos;ils sont abîmés ou périmés)
+            </label>
+          </Formulaire>
+        </section>
+      )}
 
       {peutAnnuler && (
         <section className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm md:p-6 print:hidden">

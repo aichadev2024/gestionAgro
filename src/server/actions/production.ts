@@ -61,6 +61,7 @@ export async function lancerProduction(_: EtatFormulaire, fd: FormData): Promise
       d.quantiteObtenue,
       d.numeroLot,
       d.datePeremption,
+      String(fd.get("depotId") ?? "") || undefined,
     );
     revalidatePath("/production");
     revalidatePath("/stocks");

@@ -8,6 +8,7 @@ type Option = { id: string; nom: string };
 export type ProduitDefaut = {
   code: string;
   nom: string;
+  codeBarres: string;
   categorieId: string;
   uniteId: string;
   prixAchat: number;
@@ -41,6 +42,9 @@ export function ProduitForm({
         </Champ>
         <Champ label="Nom">
           <input name="nom" required defaultValue={defaut?.nom} className={classeChamp} />
+        </Champ>
+        <Champ label="Code-barres (facultatif, pour le scanner)">
+          <input name="codeBarres" defaultValue={defaut?.codeBarres} inputMode="numeric" className={classeChamp} />
         </Champ>
         <Champ label="Catégorie">
           <select

@@ -14,6 +14,7 @@ const entierPositif = z.number().int("Montant entier (FCFA)").min(0);
 
 const venteSchema = z.object({
   clientId: z.string().optional(),
+  depotId: z.string().optional(),
   remise: entierPositif,
   lignes: z
     .array(

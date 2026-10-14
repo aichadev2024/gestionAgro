@@ -4,18 +4,21 @@ import { exigerAccesModule } from "@/lib/acces-page";
 import { formatDate, formatFCFA } from "@/lib/format";
 import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
 import { StatutAchat } from "@/components/statut-achat";
-import { annulerCommande, receptionnerCommande } from "@/server/actions/achats";
-import { trouverAchat } from "@/server/services/achats";
+import { annulerCommande, payerCommandeAction, receptionnerCommande } from "@/server/actions/achats";
+import { resteAPayer, trouverAchat } from "@/server/services/achats";
+import { listerDepots } from "@/server/services/stocks";
 
 export default async function PageAchat({ params }: PageProps<"/achats/[id]">) {
   const user = await exigerAccesModule("/achats");
   const { id } = await params;
-  const achat = await trouverAchat(id);
+  const [achat, depots] = await Promise.all([trouverAchat(id), listerDepots()]);
   if (!achat) notFound();
 
   const peutRecevoir = achat.statut === "COMMANDE" || achat.statut === "RECU_PARTIEL";
   const peutAnnuler =
     achat.statut === "COMMANDE" && (user.role === "ADMIN" || user.role === "GERANT");
+  const peutPayer = user.role === "ADMIN" || user.role === "GERANT";
+  const reste = resteAPayer(achat);
   const lignesARecevoir = achat.lignes.filter((l) => l.quantiteRecue.lt(l.quantite));
 
   return (
@@ -74,6 +77,17 @@ export default async function PageAchat({ params }: PageProps<"/achats/[id]">) {
             action={receptionnerCommande.bind(null, achat.id)}
             libelleBouton="Valider la réception"
           >
+            {depots.length > 1 && (
+              <Champ label="Dépôt de réception">
+                <select name="depotId" className={classeChamp} defaultValue={depots[0].id}>
+                  {depots.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.nom}
+                    </option>
+                  ))}
+                </select>
+              </Champ>
+            )}
             <div className="space-y-3">
               {lignesARecevoir.map((l) => (
                 <div
@@ -105,6 +119,41 @@ export default async function PageAchat({ params }: PageProps<"/achats/[id]">) {
               ))}
             </div>
           </Formulaire>
+        </section>
+      )}
+
+      {peutPayer && achat.statut !== "ANNULE" && (
+        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:p-6">
+          <h2 className="mb-1 text-lg font-bold text-brand">Paiement du fournisseur</h2>
+          <p className="mb-3 text-sm text-gray-600">
+            Total {formatFCFA(achat.total)} · reste à payer{" "}
+            <strong className={reste > 0 ? "text-tomate" : "text-brand"}>{formatFCFA(reste)}</strong>
+          </p>
+          {achat.paiements.length > 0 && (
+            <ul className="mb-3 space-y-1 text-xs text-gray-500">
+              {achat.paiements.map((p) => (
+                <li key={p.id}>
+                  {formatDate(p.creeLe)} · {formatFCFA(p.montant)} · {p.mode.replaceAll("_", " ").toLowerCase()}
+                </li>
+              ))}
+            </ul>
+          )}
+          {reste > 0 && (
+            <Formulaire action={payerCommandeAction.bind(null, achat.id)} libelleBouton="Enregistrer le paiement">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Champ label={`Montant (max ${reste})`}>
+                  <input name="montant" type="number" min={1} max={reste} step={1} defaultValue={reste} required className={classeChamp} />
+                </Champ>
+                <Champ label="Mode">
+                  <select name="mode" defaultValue="ESPECES" className={classeChamp}>
+                    <option value="ESPECES">Espèces</option>
+                    <option value="ORANGE_MONEY">Orange Money</option>
+                    <option value="MOOV_MONEY">Moov Money</option>
+                  </select>
+                </Champ>
+              </div>
+            </Formulaire>
+          )}
         </section>
       )}
 

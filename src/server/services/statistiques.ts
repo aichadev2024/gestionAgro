@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { dettesFournisseurs } from "@/server/services/achats";
 
 // ───────────────────────── Périodes ─────────────────────────
 
@@ -49,6 +50,9 @@ export type Resume = {
   credits: number; // vendu à crédit
   achats: number; // bons de commande non annulés
   nbAchats: number;
+  retours: number; // montant remboursé aux clients (déduit du CA)
+  depenses: number; // loyer, salaires, transport, etc.
+  creancesEncaissees: number; // remboursements de crédit reçus (trésorerie, hors CA)
   pertes: number; // valeur des pertes déclarées
   ecartInventaire: number; // valeur signée des écarts d'inventaire
   nbProductions: number;
@@ -67,6 +71,7 @@ export type StatsPeriode = {
   caissiers: { nom: string; nb: number; ca: number }[];
   clients: { nom: string; nb: number; ca: number }[];
   modes: { mode: string; montant: number }[];
+  categoriesDepenses: { nom: string; ca: number }[];
 };
 
 function creerSerie(p: Periode): Point[] {
@@ -88,7 +93,8 @@ export async function statistiquesPeriode(p: Periode): Promise<StatsPeriode> {
   const { debut, fin } = bornes(p);
   const dansPeriode = { gte: debut, lt: fin };
 
-  const [ventes, achats, mouvements, productions] = await Promise.all([
+  const [ventes, achats, mouvements, productions, depensesListe, retoursListe, encaisse2] =
+    await Promise.all([
     prisma.vente.findMany({
       where: { statut: "VALIDEE", creeLe: dansPeriode },
       select: {
@@ -119,6 +125,18 @@ export async function statistiquesPeriode(p: Periode): Promise<StatsPeriode> {
     prisma.production.findMany({
       where: { statut: "VALIDEE", creeLe: dansPeriode },
       select: { coutTotal: true },
+    }),
+    prisma.depense.findMany({
+      where: { statut: "VALIDEE", dateDepense: dansPeriode },
+      select: { categorie: true, montant: true, dateDepense: true },
+    }),
+    prisma.retour.findMany({
+      where: { creeLe: dansPeriode },
+      select: { creeLe: true, total: true, lignes: { select: { cout: true } } },
+    }),
+    prisma.encaissementClient.aggregate({
+      where: { creeLe: dansPeriode },
+      _sum: { montant: true },
     }),
   ]);
 
@@ -180,6 +198,24 @@ export async function statistiquesPeriode(p: Periode): Promise<StatsPeriode> {
     else ecartInventaire += valeur; // signé : négatif = manquant
   }
 
+  // Retours clients : le CA est réduit du remboursement, le coût des produits remis en stock est récupéré.
+  let totalRetours = 0;
+  for (const r of retoursListe) {
+    const coutRetour = r.lignes.reduce((x, l) => x + l.cout, 0);
+    totalRetours += r.total;
+    ca -= r.total;
+    cmv -= coutRetour;
+    const pt = serie[indexDans(p, r.creeLe)];
+    if (pt) { pt.ca -= r.total; pt.marge -= r.total - coutRetour; }
+  }
+
+  const depensesParCategorie = new Map<string, number>();
+  let totalDepenses = 0;
+  for (const d of depensesListe) {
+    totalDepenses += d.montant;
+    depensesParCategorie.set(d.categorie, (depensesParCategorie.get(d.categorie) ?? 0) + d.montant);
+  }
+
   const marge = ca - cmv;
   const resume: Resume = {
     nbVentes: ventes.length,
@@ -189,10 +225,13 @@ export async function statistiquesPeriode(p: Periode): Promise<StatsPeriode> {
     encaisse, credits,
     achats: totalAchats,
     nbAchats: achats.length,
+    retours: totalRetours,
+    depenses: totalDepenses,
+    creancesEncaissees: encaisse2._sum.montant ?? 0,
     pertes, ecartInventaire,
     nbProductions: productions.length,
     coutProduction: productions.reduce((s, x) => s + x.coutTotal, 0),
-    resultat: marge - pertes + ecartInventaire,
+    resultat: marge - pertes + ecartInventaire - totalDepenses,
   };
 
   const parCa = <T extends { ca: number }>(m: Map<string, T>, n: number) =>
@@ -206,23 +245,28 @@ export async function statistiquesPeriode(p: Periode): Promise<StatsPeriode> {
     caissiers: parCa(caissiers, 8),
     clients: parCa(clients, 8),
     modes: [...modes.entries()].map(([mode, montant]) => ({ mode, montant })),
+    categoriesDepenses: [...depensesParCategorie.entries()]
+      .map(([nom, ca]) => ({ nom, ca }))
+      .sort((a, b) => b.ca - a.ca),
   };
 }
 
 /** Situation à l'instant présent (indépendante de la période choisie). */
 export async function situationActuelle() {
-  const [lots, creances] = await Promise.all([
+  const [lots, creances, dettes] = await Promise.all([
     prisma.lot.findMany({
       where: { quantiteRestante: { gt: 0 } },
       select: { quantiteRestante: true, prixAchat: true },
     }),
     prisma.client.aggregate({ _sum: { solde: true } }),
+    dettesFournisseurs(),
   ]);
   return {
     valeurStock: Math.round(
       lots.reduce((s, l) => s + l.quantiteRestante.mul(l.prixAchat).toNumber(), 0),
     ),
     creancesClients: creances._sum.solde ?? 0,
+    dettesFournisseurs: dettes,
   };
 }
 

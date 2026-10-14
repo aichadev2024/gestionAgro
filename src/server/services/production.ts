@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { ErreurMetier } from "@/lib/erreurs";
 import { prisma } from "@/lib/prisma";
+import { choisirDepot } from "@/server/services/depots";
 import { prochainNumero } from "@/server/services/sequence";
 
 const D = (v: string | number) => new Prisma.Decimal(v);
@@ -81,6 +82,7 @@ export async function produire(
   quantiteObtenue: string,
   numeroLot: string,
   datePeremption?: string,
+  depotId?: string,
 ) {
   const mult = D(multiplicateur);
   const obtenue = D(quantiteObtenue);
@@ -97,8 +99,7 @@ export async function produire(
       if (recette.produitFini.perissable && !datePeremption) {
         throw new ErreurMetier("Date de péremption requise pour ce produit fini.");
       }
-      const depot = await tx.depot.findFirst({ orderBy: { nom: "asc" } });
-      if (!depot) throw new ErreurMetier("Aucun dépôt configuré.");
+      const depot = await choisirDepot(tx, depotId);
 
       const aujourdhui = new Date();
       aujourdhui.setHours(0, 0, 0, 0);

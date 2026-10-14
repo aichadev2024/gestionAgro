@@ -51,6 +51,7 @@ export default async function PageProduit({ params }: PageProps<"/catalogue/[id]
           defaut={{
             code: produit.code,
             nom: produit.nom,
+            codeBarres: produit.codeBarres ?? "",
             categorieId: produit.categorieId,
             uniteId: produit.uniteId,
             prixAchat: produit.prixAchat,

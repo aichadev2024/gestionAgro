@@ -45,6 +45,7 @@ export async function creerUnite(_: EtatFormulaire, fd: FormData): Promise<EtatF
 const produitSchema = z.object({
   code: z.string().trim().min(1, "Code requis").max(30).toUpperCase(),
   nom: z.string().trim().min(1, "Nom requis").max(120),
+  codeBarres: z.string().trim().max(50).optional(),
   categorieId: z.string().min(1, "Catégorie requise"),
   uniteId: z.string().min(1, "Unité requise"),
   prixAchat: entier,
@@ -57,6 +58,7 @@ function lireProduit(fd: FormData) {
   return produitSchema.parse({
     code: fd.get("code"),
     nom: fd.get("nom"),
+    codeBarres: String(fd.get("codeBarres") ?? "").trim() || undefined,
     categorieId: fd.get("categorieId"),
     uniteId: fd.get("uniteId"),
     prixAchat: fd.get("prixAchat") || 0,
@@ -109,7 +111,7 @@ export async function modifierProduit(
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.produit.update({ where: { id }, data });
+      await tx.produit.update({ where: { id }, data: { ...data, codeBarres: data.codeBarres ?? null } });
       if (prixChange) {
         await tx.journalAction.create({
           data: {
@@ -182,4 +184,36 @@ export async function supprimerConditionnement(produitId: string, id: string) {
   await exigerRole(...ROLES_CATALOGUE);
   await prisma.conditionnement.delete({ where: { id } });
   revalidatePath(`/catalogue/${produitId}`);
+}
+
+export async function modifierCategorie(
+  id: string,
+  _: EtatFormulaire,
+  fd: FormData,
+): Promise<EtatFormulaire> {
+  try {
+    await exigerRole(...ROLES_CATALOGUE);
+    const { nom } = nomSchema.parse({ nom: fd.get("nom") });
+    await prisma.categorie.update({ where: { id }, data: { nom } });
+    revalidatePath("/catalogue");
+    return { ok: true };
+  } catch (e) {
+    return { erreur: messageErreur(e) };
+  }
+}
+
+export async function modifierUnite(
+  id: string,
+  _: EtatFormulaire,
+  fd: FormData,
+): Promise<EtatFormulaire> {
+  try {
+    await exigerRole(...ROLES_CATALOGUE);
+    const data = uniteSchema.parse({ nom: fd.get("nom"), symbole: fd.get("symbole") });
+    await prisma.unite.update({ where: { id }, data });
+    revalidatePath("/catalogue");
+    return { ok: true };
+  } catch (e) {
+    return { erreur: messageErreur(e) };
+  }
 }

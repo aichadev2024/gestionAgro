@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { exigerAccesModule } from "@/lib/acces-page";
 import { Caisse } from "@/components/caisse";
+import { listerDepots } from "@/server/services/stocks";
 import { listerClients, produitsPourCaisse } from "@/server/services/ventes";
 
 export default async function PageNouvelleVente() {
   const user = await exigerAccesModule("/ventes");
-  const [produits, clients] = await Promise.all([produitsPourCaisse(), listerClients()]);
+  const [produits, clients, depots] = await Promise.all([
+    produitsPourCaisse(),
+    listerClients(),
+    listerDepots(),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -17,6 +22,7 @@ export default async function PageNouvelleVente() {
       </div>
       <Caisse
         produits={produits}
+        depots={depots.map((d) => ({ id: d.id, nom: d.nom }))}
         clients={clients.map((c) => ({
           id: c.id,
           nom: c.nom,

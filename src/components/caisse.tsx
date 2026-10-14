@@ -5,7 +5,17 @@ import { useMemo, useState, useTransition } from "react";
 import { classeChamp } from "@/components/formulaire";
 import { validerVente } from "@/server/actions/ventes";
 
-type ProduitCaisse = { id: string; nom: string; symbole: string; prix: number; stock: string };
+type ProduitCaisse = {
+  id: string;
+  code: string;
+  codeBarres: string;
+  nom: string;
+  symbole: string;
+  prix: number;
+  stock: string;
+  stocks: Record<string, string>;
+};
+type DepotOption = { id: string; nom: string };
 type ClientOption = { id: string; nom: string; solde: number; plafondCredit: number };
 type Mode = "ESPECES" | "ORANGE_MONEY" | "MOOV_MONEY" | "CREDIT";
 type Paiement = { cle: number; mode: Mode; montant: string };
@@ -26,9 +36,11 @@ let compteur = 1;
 export function Caisse({
   produits,
   clients,
+  depots,
   peutRemise,
 }: {
   produits: ProduitCaisse[];
+  depots: DepotOption[];
   clients: ClientOption[];
   peutRemise: boolean;
 }) {
@@ -37,6 +49,9 @@ export function Caisse({
   const [recherche, setRecherche] = useState("");
   const [panier, setPanier] = useState<Record<string, string>>({});
   const [clientId, setClientId] = useState("");
+  const [depotId, setDepotId] = useState(depots[0]?.id ?? "");
+  const plusieursDepots = depots.length > 1;
+  const stockDe = (p: ProduitCaisse) => (plusieursDepots ? (p.stocks[depotId] ?? "0") : p.stock);
   const [remise, setRemise] = useState("");
   const [paiements, setPaiements] = useState<Paiement[]>([
     { cle: 0, mode: "ESPECES", montant: "" },
@@ -71,6 +86,7 @@ export function Caisse({
     demarrer(async () => {
       const res = await validerVente({
         clientId: clientId || undefined,
+        depotId: plusieursDepots ? depotId : undefined,
         remise: remiseNum,
         lignes: lignes.map((l) => ({ produitId: l.produit.id, quantite: l.qte.trim() })),
         paiements: paiements
@@ -85,15 +101,41 @@ export function Caisse({
   return (
     <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
       <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm md:p-5">
+        {plusieursDepots && (
+          <label className="mb-3 block text-sm font-medium text-gray-700">
+            Vendre depuis le dépôt
+            <select value={depotId} onChange={(e) => setDepotId(e.target.value)} className={classeChamp}>
+              {depots.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <input
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Rechercher un produit…"
+          onKeyDown={(e) => {
+            // Un lecteur de code-barres « tape » le code puis Entrée : on ajoute le produit correspondant.
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            const saisie = recherche.trim().toLowerCase();
+            const trouve = produits.find(
+              (p) => saisie && (p.codeBarres === saisie || p.code.toLowerCase() === saisie),
+            );
+            if (trouve && nombre(stockDe(trouve)) > 0) {
+              ajouter(trouve);
+              setRecherche("");
+            }
+          }}
+          placeholder="Rechercher ou scanner un code-barres…"
           className={classeChamp}
+          autoFocus
         />
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {visibles.map((p) => {
-            const rupture = nombre(p.stock) <= 0;
+            const rupture = nombre(stockDe(p)) <= 0;
             return (
               <button
                 key={p.id}
@@ -105,7 +147,7 @@ export function Caisse({
                 <div className="font-semibold text-brand">{p.nom}</div>
                 <div className="text-sm text-gray-600">{fcfa(p.prix)}</div>
                 <div className={`text-xs ${rupture ? "text-tomate" : "text-gray-500"}`}>
-                  {rupture ? "Rupture" : `Stock : ${p.stock} ${p.symbole}`}
+                  {rupture ? "Rupture" : `Stock : ${stockDe(p)} ${p.symbole}`}
                 </div>
               </button>
             );

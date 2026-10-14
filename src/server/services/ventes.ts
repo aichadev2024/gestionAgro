@@ -10,16 +10,30 @@ export type VenteSaisie = {
   lignes: LigneVenteSaisie[];
   paiements: PaiementSaisi[];
   remise: number;
+  depotId?: string;
 };
 
 const D = (v: string | number) => new Prisma.Decimal(v);
 
-export function listerVentes() {
-  return prisma.vente.findMany({
-    orderBy: { creeLe: "desc" },
-    take: 100,
-    include: { client: true, caissier: { select: { nom: true } } },
-  });
+export function listerVentes(recherche?: string, page = 1, parPage = 25) {
+  const where = recherche
+    ? {
+        OR: [
+          { numero: { contains: recherche, mode: "insensitive" as const } },
+          { client: { nom: { contains: recherche, mode: "insensitive" as const } } },
+        ],
+      }
+    : {};
+  return Promise.all([
+    prisma.vente.findMany({
+      where,
+      orderBy: { creeLe: "desc" },
+      skip: (page - 1) * parPage,
+      take: parPage,
+      include: { client: true, caissier: { select: { nom: true } } },
+    }),
+    prisma.vente.count({ where }),
+  ]);
 }
 
 export function trouverVente(id: string) {
@@ -38,7 +52,7 @@ export function listerClients() {
   return prisma.client.findMany({ orderBy: { nom: "asc" } });
 }
 
-/** Produits actifs avec leur stock vendable (lots non périmés). */
+/** Produits actifs avec leur stock vendable (lots non périmés), au total et par dépôt. */
 export async function produitsPourCaisse() {
   const aujourdhui = new Date();
   aujourdhui.setHours(0, 0, 0, 0);
@@ -49,7 +63,7 @@ export async function produitsPourCaisse() {
       include: { unite: true },
     }),
     prisma.lot.groupBy({
-      by: ["produitId"],
+      by: ["produitId", "depotId"],
       where: {
         quantiteRestante: { gt: 0 },
         OR: [{ datePeremption: null }, { datePeremption: { gte: aujourdhui } }],
@@ -57,14 +71,25 @@ export async function produitsPourCaisse() {
       _sum: { quantiteRestante: true },
     }),
   ]);
-  const stock = new Map(lots.map((l) => [l.produitId, l._sum.quantiteRestante?.toString() ?? "0"]));
-  return produits.map((p) => ({
-    id: p.id,
-    nom: p.nom,
-    symbole: p.unite.symbole,
-    prix: p.prixVente,
-    stock: stock.get(p.id) ?? "0",
-  }));
+  return produits.map((p) => {
+    const stocks: Record<string, string> = {};
+    let total = D(0);
+    for (const l of lots.filter((x) => x.produitId === p.id)) {
+      const q = l._sum.quantiteRestante ?? D(0);
+      stocks[l.depotId] = q.toString();
+      total = total.add(q);
+    }
+    return {
+      id: p.id,
+      code: p.code,
+      codeBarres: p.codeBarres ?? "",
+      nom: p.nom,
+      symbole: p.unite.symbole,
+      prix: p.prixVente,
+      stock: total.toString(),
+      stocks,
+    };
+  });
 }
 
 /**
@@ -97,6 +122,7 @@ export async function creerVente(auteurId: string, saisie: VenteSaisie) {
         const lots = await tx.lot.findMany({
           where: {
             produitId: produit.id,
+            ...(saisie.depotId ? { depotId: saisie.depotId } : {}),
             quantiteRestante: { gt: 0 },
             OR: [{ datePeremption: null }, { datePeremption: { gte: aujourdhui } }],
           },
@@ -228,6 +254,9 @@ export async function annulerVente(auteurId: string, venteId: string, motif: str
         include: { paiements: true, lignes: { include: { lots: true } } },
       });
       if (vente.statut !== "VALIDEE") throw new ErreurMetier("Cette vente est déjà annulée.");
+      if ((await tx.retour.count({ where: { venteId } })) > 0) {
+        throw new ErreurMetier("Annulation impossible : des retours existent sur cette vente.");
+      }
 
       for (const ligne of vente.lignes) {
         for (const p of ligne.lots) {

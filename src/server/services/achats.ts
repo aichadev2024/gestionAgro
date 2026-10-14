@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { ErreurMetier } from "@/lib/erreurs";
 import { prisma } from "@/lib/prisma";
+import { choisirDepot } from "@/server/services/depots";
 import { prochainNumero } from "@/server/services/sequence";
 
 export type LigneCommande = { produitId: string; quantite: string; prixUnitaire: number };
@@ -20,11 +21,74 @@ export function listerFournisseurs() {
   });
 }
 
-export function listerAchats() {
-  return prisma.achat.findMany({
-    orderBy: { creeLe: "desc" },
-    take: 100,
-    include: { fournisseur: true },
+export function listerAchats(recherche?: string, page = 1, parPage = 25) {
+  const where = recherche
+    ? {
+        OR: [
+          { numero: { contains: recherche, mode: "insensitive" as const } },
+          { fournisseur: { nom: { contains: recherche, mode: "insensitive" as const } } },
+        ],
+      }
+    : {};
+  return Promise.all([
+    prisma.achat.findMany({
+      where,
+      orderBy: { creeLe: "desc" },
+      skip: (page - 1) * parPage,
+      take: parPage,
+      include: { fournisseur: true, paiements: { select: { montant: true } } },
+    }),
+    prisma.achat.count({ where }),
+  ]);
+}
+
+/** Reste à payer au fournisseur : total de la commande moins les paiements enregistrés. */
+export function resteAPayer(achat: { total: number; statut: string; paiements: { montant: number }[] }) {
+  if (achat.statut === "ANNULE") return 0;
+  return achat.total - achat.paiements.reduce((s, p) => s + p.montant, 0);
+}
+
+export async function dettesFournisseurs() {
+  const achats = await prisma.achat.findMany({
+    where: { statut: { not: "ANNULE" } },
+    select: { total: true, statut: true, paiements: { select: { montant: true } } },
+  });
+  return achats.reduce((s, a) => s + resteAPayer(a), 0);
+}
+
+export async function payerAchat(
+  auteurId: string,
+  achatId: string,
+  montant: number,
+  mode: "ESPECES" | "ORANGE_MONEY" | "MOOV_MONEY",
+) {
+  if (!Number.isInteger(montant) || montant <= 0) {
+    throw new ErreurMetier("Le montant doit être un entier positif (FCFA).");
+  }
+  await prisma.$transaction(
+    async (tx) => {
+      const achat = await tx.achat.findUniqueOrThrow({
+        where: { id: achatId },
+        include: { paiements: { select: { montant: true } } },
+      });
+      if (achat.statut === "ANNULE") throw new ErreurMetier("Cette commande est annulée.");
+      const reste = resteAPayer(achat);
+      if (montant > reste) {
+        throw new ErreurMetier(`Il ne reste que ${reste} FCFA à payer sur cette commande.`);
+      }
+      await tx.paiementAchat.create({ data: { achatId, montant, mode, creeParId: auteurId } });
+    },
+    { isolationLevel: "Serializable" },
+  );
+}
+
+export function modifierFournisseur(
+  id: string,
+  d: { nom: string; telephone?: string; adresse?: string },
+) {
+  return prisma.fournisseur.update({
+    where: { id },
+    data: { nom: d.nom, telephone: d.telephone || null, adresse: d.adresse || null },
   });
 }
 
@@ -33,6 +97,7 @@ export function trouverAchat(id: string) {
     where: { id },
     include: {
       fournisseur: true,
+      paiements: { orderBy: { creeLe: "desc" } },
       lignes: { include: { produit: { include: { unite: true } } }, orderBy: { id: "asc" } },
     },
   });
@@ -75,6 +140,7 @@ export async function receptionner(
   auteurId: string,
   achatId: string,
   lignes: LigneReception[],
+  depotId?: string,
 ) {
   const aRecevoir = lignes.filter((l) => D(l.quantite).gt(0));
   if (aRecevoir.length === 0) throw new ErreurMetier("Saisissez au moins une quantité reçue.");
@@ -88,8 +154,7 @@ export async function receptionner(
       if (achat.statut !== "COMMANDE" && achat.statut !== "RECU_PARTIEL") {
         throw new ErreurMetier("Cette commande ne peut plus être réceptionnée.");
       }
-      const depot = await tx.depot.findFirst({ orderBy: { nom: "asc" } });
-      if (!depot) throw new ErreurMetier("Aucun dépôt configuré.");
+      const depot = await choisirDepot(tx, depotId);
 
       for (const r of aRecevoir) {
         const ligne = achat.lignes.find((l) => l.id === r.ligneId);

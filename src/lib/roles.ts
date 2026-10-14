@@ -20,10 +20,13 @@ export type ModuleMenu = { href: string; libelle: string; roles: Role[] };
 export const MENU: ModuleMenu[] = [
   { href: "/", libelle: "Tableau de bord", roles: ["ADMIN", "GERANT"] },
   { href: "/ventes", libelle: "Ventes", roles: ["ADMIN", "GERANT", "CAISSIER"] },
+  { href: "/caisse", libelle: "Clôture de caisse", roles: ["ADMIN", "GERANT", "CAISSIER"] },
+  { href: "/clients", libelle: "Clients", roles: ["ADMIN", "GERANT", "CAISSIER"] },
   { href: "/achats", libelle: "Achats", roles: ["ADMIN", "GERANT", "MAGASINIER"] },
   { href: "/stocks", libelle: "Stocks", roles: ["ADMIN", "GERANT", "MAGASINIER"] },
   { href: "/catalogue", libelle: "Catalogue", roles: ["ADMIN", "GERANT", "MAGASINIER"] },
   { href: "/production", libelle: "Production", roles: ["ADMIN", "GERANT", "RESPONSABLE_PRODUCTION"] },
+  { href: "/depenses", libelle: "Dépenses", roles: ["ADMIN", "GERANT"] },
   { href: "/statistiques", libelle: "Statistiques", roles: ["ADMIN", "GERANT"] },
   { href: "/utilisateurs", libelle: "Utilisateurs", roles: ["ADMIN"] },
 ];

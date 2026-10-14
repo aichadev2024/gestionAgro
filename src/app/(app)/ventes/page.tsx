@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { exigerAccesModule } from "@/lib/acces-page";
 import { formatDate, formatFCFA } from "@/lib/format";
-import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
-import { creerClient } from "@/server/actions/ventes";
-import { listerClients, listerVentes } from "@/server/services/ventes";
+import { Pagination, Recherche, lirePage, lireTexte } from "@/components/recherche-pagination";
+import { listerVentes } from "@/server/services/ventes";
 
-export default async function PageVentes() {
-  const user = await exigerAccesModule("/ventes");
-  const [ventes, clients] = await Promise.all([listerVentes(), listerClients()]);
-  const peutFixerPlafond = user.role === "ADMIN" || user.role === "GERANT";
+export default async function PageVentes({ searchParams }: PageProps<"/ventes">) {
+  await exigerAccesModule("/ventes");
+  const sp = await searchParams;
+  const q = lireTexte(sp.q);
+  const page = lirePage(sp.page);
+  const [ventes, total] = await listerVentes(q, page);
 
   return (
     <div className="space-y-6">
@@ -21,6 +22,8 @@ export default async function PageVentes() {
           + Nouvelle vente
         </Link>
       </div>
+
+      <Recherche action="/ventes" valeur={q} placeholder="N° de facture ou client…" />
 
       <section className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
@@ -67,34 +70,11 @@ export default async function PageVentes() {
           </tbody>
         </table>
       </section>
+      <Pagination page={page} total={total} chemin="/ventes" recherche={q} />
 
-      <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:p-6">
-        <h2 className="mb-3 text-lg font-bold text-brand">Clients</h2>
-        <ul className="mb-4 flex flex-wrap gap-2">
-          {clients.length === 0 && <li className="text-sm text-gray-500">Aucun client enregistré.</li>}
-          {clients.map((c) => (
-            <li key={c.id} className="rounded-full bg-brand-soft px-3 py-1 text-sm text-brand">
-              {c.nom}
-              {c.solde > 0 && <span className="text-tomate"> · doit {formatFCFA(c.solde)}</span>}
-            </li>
-          ))}
-        </ul>
-        <Formulaire action={creerClient} libelleBouton="Ajouter le client">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Champ label="Nom">
-              <input name="nom" required className={classeChamp} />
-            </Champ>
-            <Champ label="Téléphone">
-              <input name="telephone" className={classeChamp} />
-            </Champ>
-            {peutFixerPlafond && (
-              <Champ label="Plafond de crédit (FCFA)">
-                <input name="plafondCredit" type="number" min={0} step={1} defaultValue={0} className={classeChamp} />
-              </Champ>
-            )}
-          </div>
-        </Formulaire>
-      </section>
+      <p className="text-sm text-gray-500">
+        Gestion des clients et remboursements de crédit : <Link href="/clients" className="font-semibold text-brand hover:underline">page Clients</Link>.
+      </p>
     </div>
   );
 }

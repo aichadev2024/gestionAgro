@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { MARQUE } from "@/lib/marque";
 import "./globals.css";
@@ -12,6 +12,10 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+export const viewport: Viewport = {
+  themeColor: "#1f5d34",
+};
 
 export const metadata: Metadata = {
   title: `${MARQUE.nom} · ${MARQUE.slogan}`,

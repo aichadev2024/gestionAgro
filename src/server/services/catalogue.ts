@@ -31,3 +31,26 @@ export function trouverProduit(id: string) {
     },
   });
 }
+
+export function rechercherProduits(recherche?: string, page = 1, parPage = 25) {
+  const where = recherche
+    ? {
+        OR: [
+          { nom: { contains: recherche, mode: "insensitive" as const } },
+          { code: { contains: recherche, mode: "insensitive" as const } },
+          { codeBarres: { contains: recherche } },
+          { categorie: { nom: { contains: recherche, mode: "insensitive" as const } } },
+        ],
+      }
+    : {};
+  return Promise.all([
+    prisma.produit.findMany({
+      where,
+      orderBy: [{ actif: "desc" }, { nom: "asc" }],
+      skip: (page - 1) * parPage,
+      take: parPage,
+      include: { categorie: true, unite: true },
+    }),
+    prisma.produit.count({ where }),
+  ]);
+}

@@ -237,6 +237,7 @@ export default async function PageStatistiques({ searchParams }: PageProps<"/sta
         <div className="mt-2 text-sm text-white/85">
           Marge brute {formatFCFA(r.marge)}
           {r.pertes > 0 && ` − pertes ${formatFCFA(r.pertes)}`}
+          {r.depenses > 0 && ` − dépenses ${formatFCFA(r.depenses)}`}
           {r.ecartInventaire !== 0 && ` ${r.ecartInventaire < 0 ? "−" : "+"} écarts d'inventaire ${formatFCFA(Math.abs(r.ecartInventaire))}`}
           {" · "}
           <span className="font-semibold">
@@ -261,6 +262,9 @@ export default async function PageStatistiques({ searchParams }: PageProps<"/sta
           classe="border-l-tomate"
           aide="Négatif = manquant"
         />
+        <Kpi titre="Dépenses (loyer, salaires…)" valeur={formatFCFA(r.depenses)} classe="border-l-tomate" actuel={r.depenses} precedent={rp.depenses} />
+        <Kpi titre="Retours clients" valeur={formatFCFA(r.retours)} classe="border-l-gray-400" actuel={r.retours} precedent={rp.retours} aide="Déjà déduits du CA" />
+        <Kpi titre="Créances encaissées" valeur={formatFCFA(r.creancesEncaissees)} classe="border-l-brand" aide="Remboursements de clients à crédit" />
         <Kpi titre="Productions" valeur={String(r.nbProductions)} classe="border-l-brand" aide={`Matières consommées : ${formatFCFA(r.coutProduction)}`} />
         <Kpi titre="Coût des produits vendus" valeur={formatFCFA(r.cmv)} classe="border-l-gray-400" actuel={r.cmv} precedent={rp.cmv} />
       </div>
@@ -336,7 +340,7 @@ export default async function PageStatistiques({ searchParams }: PageProps<"/sta
         </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         <Classement
           titre="Par catégorie"
           lignes={s.categories.map((c) => ({
@@ -350,13 +354,18 @@ export default async function PageStatistiques({ searchParams }: PageProps<"/sta
           lignes={s.caissiers.map((c) => ({ nom: c.nom, ca: c.ca, detail: `${c.nb} vente(s)` }))}
         />
         <Classement
+          titre="Dépenses par catégorie"
+          lignes={s.categoriesDepenses.map((c) => ({ nom: c.nom, ca: c.ca }))}
+        />
+        <Classement
           titre="Meilleurs clients"
           lignes={s.clients.map((c) => ({ nom: c.nom, ca: c.ca, detail: `${c.nb} achat(s)` }))}
         />
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2">
+      <section className="grid gap-4 sm:grid-cols-3">
         <Kpi titre="Valeur du stock aujourd'hui" valeur={formatFCFA(actuel.valeurStock)} classe="border-l-brand" aide="Au prix d'achat, tous dépôts" />
+        <Kpi titre="Dettes envers les fournisseurs" valeur={formatFCFA(actuel.dettesFournisseurs)} classe="border-l-tomate" aide="Reste à payer sur les commandes" />
         <Kpi titre="Créances clients aujourd'hui" valeur={formatFCFA(actuel.creancesClients)} classe="border-l-yellow-600" aide="Argent dû par les clients à crédit" />
       </section>
     </div>

@@ -17,7 +17,13 @@ type Recette = {
 const nombre = (s: string) => Number(s.replace(",", ".")) || 0;
 const arrondi = (n: number) => String(Math.round(n * 1000) / 1000);
 
-export function ProductionForm({ recettes }: { recettes: Recette[] }) {
+export function ProductionForm({
+  recettes,
+  depots,
+}: {
+  recettes: Recette[];
+  depots: { id: string; nom: string }[];
+}) {
   const [recetteId, setRecetteId] = useState("");
   const [mult, setMult] = useState("1");
   const [obtenue, setObtenue] = useState<string>();
@@ -97,6 +103,17 @@ export function ProductionForm({ recettes }: { recettes: Recette[] }) {
           <input name="datePeremption" type="date" className={classeChamp} />
         </Champ>
       </div>
+      {depots.length > 1 && (
+        <Champ label="Dépôt du produit fini">
+          <select name="depotId" defaultValue={depots[0].id} className={classeChamp}>
+            {depots.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.nom}
+              </option>
+            ))}
+          </select>
+        </Champ>
+      )}
       {rendement !== null && (
         <p className={`text-sm font-semibold ${rendement < 90 ? "text-tomate" : "text-brand"}`}>
           Rendement : {rendement} %

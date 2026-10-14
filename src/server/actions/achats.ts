@@ -5,7 +5,13 @@ import { z } from "zod";
 import { exigerRole } from "@/lib/droits";
 import { messageErreur, type EtatFormulaire } from "@/lib/erreurs";
 import { prisma } from "@/lib/prisma";
-import { annulerAchat, creerBonDeCommande, receptionner } from "@/server/services/achats";
+import {
+  annulerAchat,
+  creerBonDeCommande,
+  modifierFournisseur,
+  payerAchat,
+  receptionner,
+} from "@/server/services/achats";
 
 const ROLES_ACHATS = ["ADMIN", "GERANT", "MAGASINIER"] as const;
 const ROLES_ANNULATION = ["ADMIN", "GERANT"] as const;
@@ -80,7 +86,7 @@ export async function receptionnerCommande(
       numeroLot: String(fd.get(`lot_${ligneId}`) ?? ""),
       datePeremption: String(fd.get(`peremption_${ligneId}`) ?? "") || undefined,
     }));
-    await receptionner(user.id, achatId, lignes);
+    await receptionner(user.id, achatId, lignes, String(fd.get("depotId") ?? "") || undefined);
     revalidatePath("/achats");
     revalidatePath(`/achats/${achatId}`);
     return { ok: true };
@@ -99,6 +105,54 @@ export async function annulerCommande(
     await annulerAchat(user.id, achatId, String(fd.get("motif") ?? ""));
     revalidatePath("/achats");
     revalidatePath(`/achats/${achatId}`);
+    return { ok: true };
+  } catch (e) {
+    return { erreur: messageErreur(e) };
+  }
+}
+
+export async function payerCommandeAction(
+  achatId: string,
+  _: EtatFormulaire,
+  fd: FormData,
+): Promise<EtatFormulaire> {
+  try {
+    const user = await exigerRole("ADMIN", "GERANT");
+    const d = z
+      .object({
+        montant: z.coerce.number().int("Montant entier (FCFA)").positive("Montant > 0"),
+        mode: z.enum(["ESPECES", "ORANGE_MONEY", "MOOV_MONEY"]),
+      })
+      .parse({ montant: fd.get("montant"), mode: fd.get("mode") });
+    await payerAchat(user.id, achatId, d.montant, d.mode);
+    revalidatePath("/achats");
+    revalidatePath(`/achats/${achatId}`);
+    return { ok: true };
+  } catch (e) {
+    return { erreur: messageErreur(e) };
+  }
+}
+
+export async function modifierFournisseurAction(
+  id: string,
+  _: EtatFormulaire,
+  fd: FormData,
+): Promise<EtatFormulaire> {
+  try {
+    await exigerRole(...ROLES_ACHATS);
+    const d = z
+      .object({
+        nom: z.string().trim().min(1, "Nom requis").max(120),
+        telephone: z.string().trim().max(30).optional(),
+        adresse: z.string().trim().max(200).optional(),
+      })
+      .parse({
+        nom: fd.get("nom"),
+        telephone: fd.get("telephone") || undefined,
+        adresse: fd.get("adresse") || undefined,
+      });
+    await modifierFournisseur(id, d);
+    revalidatePath("/achats");
     return { ok: true };
   } catch (e) {
     return { erreur: messageErreur(e) };

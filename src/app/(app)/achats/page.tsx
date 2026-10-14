@@ -3,12 +3,26 @@ import { exigerAccesModule } from "@/lib/acces-page";
 import { formatDate, formatFCFA } from "@/lib/format";
 import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
 import { StatutAchat } from "@/components/statut-achat";
-import { creerFournisseur } from "@/server/actions/achats";
-import { listerAchats, listerFournisseurs } from "@/server/services/achats";
+import { Pagination, Recherche, lirePage, lireTexte } from "@/components/recherche-pagination";
+import { creerFournisseur, modifierFournisseurAction } from "@/server/actions/achats";
+import {
+  dettesFournisseurs,
+  listerAchats,
+  listerFournisseurs,
+  resteAPayer,
+} from "@/server/services/achats";
 
-export default async function PageAchats() {
-  await exigerAccesModule("/achats");
-  const [achats, fournisseurs] = await Promise.all([listerAchats(), listerFournisseurs()]);
+export default async function PageAchats({ searchParams }: PageProps<"/achats">) {
+  const user = await exigerAccesModule("/achats");
+  const sp = await searchParams;
+  const q = lireTexte(sp.q);
+  const page = lirePage(sp.page);
+  const [[achats, total], fournisseurs, dettes] = await Promise.all([
+    listerAchats(q, page),
+    listerFournisseurs(),
+    dettesFournisseurs(),
+  ]);
+  const voitPaiements = user.role === "ADMIN" || user.role === "GERANT";
 
   return (
     <div className="space-y-6">
@@ -22,6 +36,16 @@ export default async function PageAchats() {
         </Link>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Recherche action="/achats" valeur={q} placeholder="N° de commande ou fournisseur…" />
+        {voitPaiements && (
+          <div className="rounded-2xl border-l-4 border-l-tomate bg-white px-5 py-3 shadow-sm">
+            <div className="text-xs text-gray-500">Dettes envers les fournisseurs</div>
+            <div className="text-xl font-extrabold">{formatFCFA(dettes)}</div>
+          </div>
+        )}
+      </div>
+
       <section className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-brand-soft text-xs uppercase text-brand">
@@ -30,13 +54,14 @@ export default async function PageAchats() {
               <th className="px-4 py-3">Date</th>
               <th className="px-4 py-3">Fournisseur</th>
               <th className="px-4 py-3 text-right">Total</th>
+              {voitPaiements && <th className="px-4 py-3 text-right">Reste à payer</th>}
               <th className="px-4 py-3">Statut</th>
             </tr>
           </thead>
           <tbody>
             {achats.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                   Aucun bon de commande pour l&apos;instant.
                 </td>
               </tr>
@@ -51,6 +76,11 @@ export default async function PageAchats() {
                 <td className="px-4 py-3">{formatDate(a.creeLe)}</td>
                 <td className="px-4 py-3">{a.fournisseur.nom}</td>
                 <td className="px-4 py-3 text-right">{formatFCFA(a.total)}</td>
+                {voitPaiements && (
+                  <td className={`px-4 py-3 text-right font-semibold ${resteAPayer(a) > 0 ? "text-tomate" : "text-brand"}`}>
+                    {a.statut === "ANNULE" ? "—" : formatFCFA(resteAPayer(a))}
+                  </td>
+                )}
                 <td className="px-4 py-3">
                   <StatutAchat statut={a.statut} />
                 </td>
@@ -59,20 +89,37 @@ export default async function PageAchats() {
           </tbody>
         </table>
       </section>
+      <Pagination page={page} total={total} chemin="/achats" recherche={q} />
 
       <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:p-6">
         <h2 className="mb-3 text-lg font-bold text-brand">Fournisseurs</h2>
-        <ul className="mb-4 flex flex-wrap gap-2">
-          {fournisseurs.length === 0 && (
-            <li className="text-sm text-gray-500">Aucun fournisseur.</li>
-          )}
+        <div className="mb-4 space-y-2">
+          {fournisseurs.length === 0 && <p className="text-sm text-gray-500">Aucun fournisseur.</p>}
           {fournisseurs.map((f) => (
-            <li key={f.id} className="rounded-full bg-brand-soft px-3 py-1 text-sm text-brand">
-              {f.nom}
-              {f.telephone && <span className="text-gray-500"> · {f.telephone}</span>}
-            </li>
+            <details key={f.id} className="rounded-xl bg-brand-soft/50 px-4 py-2">
+              <summary className="cursor-pointer text-sm font-medium text-brand">
+                {f.nom}
+                {f.telephone && <span className="text-gray-500"> · {f.telephone}</span>}
+                <span className="text-gray-400"> · {f._count.achats} commande(s)</span>
+              </summary>
+              <div className="mt-3">
+                <Formulaire action={modifierFournisseurAction.bind(null, f.id)} libelleBouton="Enregistrer" vider={false}>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <Champ label="Nom">
+                      <input name="nom" required defaultValue={f.nom} className={classeChamp} />
+                    </Champ>
+                    <Champ label="Téléphone">
+                      <input name="telephone" defaultValue={f.telephone ?? ""} className={classeChamp} />
+                    </Champ>
+                    <Champ label="Adresse">
+                      <input name="adresse" defaultValue={f.adresse ?? ""} className={classeChamp} />
+                    </Champ>
+                  </div>
+                </Formulaire>
+              </div>
+            </details>
           ))}
-        </ul>
+        </div>
         <Formulaire action={creerFournisseur} libelleBouton="Ajouter le fournisseur">
           <div className="grid gap-3 sm:grid-cols-3">
             <Champ label="Nom">
