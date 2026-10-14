@@ -51,15 +51,17 @@ enum TypeMouvement {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  nom        String
-  email      String   @unique
-  motDePasse String
-  role       Role
-  actif      Boolean  @default(true)
-  recoitAlertes    Boolean   @default(false)
+  id               String           @id @default(cuid())
+  nom              String
+  email            String           @unique
+  motDePasse       String
+  role             Role
+  actif            Boolean          @default(true)
+  recoitAlertes    Boolean          @default(false)
   derniereAlerteLe DateTime?
-  creeLe     DateTime @default(now())
+  dernierPushLe    DateTime?
+  abonnementsPush  AbonnementPush[]
+  creeLe           DateTime         @default(now())
 
   ventes  Vente[]
   journal JournalAction[]
@@ -412,4 +414,17 @@ model TentativeConnexion {
   creeLe  DateTime @default(now())
 
   @@index([email, creeLe])
+}
+
+model AbonnementPush {
+  id       String   @id @default(cuid())
+  userId   String
+  endpoint String   @unique
+  p256dh   String
+  auth     String
+  creeLe   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }

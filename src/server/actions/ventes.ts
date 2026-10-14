@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exigerRole } from "@/lib/droits";
 import { ErreurMetier, messageErreur, type EtatFormulaire } from "@/lib/erreurs";
+import { formatFCFA } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { notifierEvenement, passesEnStockBas, stocksTotaux } from "@/server/services/push";
 import { annulerVente, creerVente } from "@/server/services/ventes";
 
 const ROLES_CAISSE = ["ADMIN", "GERANT", "CAISSIER"] as const;
@@ -45,7 +47,19 @@ export async function validerVente(payload: z.input<typeof venteSchema>): Promis
     if (data.remise > 0 && !ROLES_SENSIBLES.some((r) => r === user.role)) {
       throw new ErreurMetier("Seul un gérant ou un administrateur peut accorder une remise.");
     }
+    const produitIds = [...new Set(data.lignes.map((l) => l.produitId))];
+    const avant = await stocksTotaux(produitIds);
     const vente = await creerVente(user.id, data);
+    // Alerte en direct si cette vente fait passer un produit sous son seuil (sans bloquer la vente).
+    const bas = passesEnStockBas(avant, await stocksTotaux(produitIds));
+    if (bas.length > 0) {
+      void notifierEvenement(["ADMIN", "GERANT", "MAGASINIER"], {
+        title: `Stock bas : ${bas.map((b) => b.nom).join(", ")}`,
+        body: bas.map((b) => `${b.nom} : ${b.total} ${b.symbole} restant`).join(" · "),
+        url: "/stocks",
+        tag: "stock-bas",
+      });
+    }
     revalidatePath("/ventes");
     revalidatePath("/");
     return { id: vente.id };
@@ -85,7 +99,20 @@ export async function annulerVenteAction(
 ): Promise<EtatFormulaire> {
   try {
     const user = await exigerRole(...ROLES_SENSIBLES);
-    await annulerVente(user.id, venteId, String(fd.get("motif") ?? ""));
+    const motif = String(fd.get("motif") ?? "");
+    await annulerVente(user.id, venteId, motif);
+    const v = await prisma.vente.findUnique({ where: { id: venteId }, select: { numero: true, total: true } });
+    if (v) {
+      void notifierEvenement(
+        ["ADMIN", "GERANT"],
+        {
+          title: `Vente annulée : ${v.numero}`,
+          body: `${formatFCFA(v.total)} annulés par ${user.name} · ${motif.trim()}`,
+          url: `/ventes/${venteId}`,
+        },
+        { exclure: user.id },
+      );
+    }
     revalidatePath("/ventes");
     revalidatePath(`/ventes/${venteId}`);
     return { ok: true };

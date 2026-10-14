@@ -62,6 +62,37 @@ curl -fsS -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron
 Chaque personne reçoit **au plus un email par jour**, et **aucun s'il n'y a rien à signaler**.
 Gmail limite l'envoi à environ 500 emails par jour : c'est largement suffisant pour une équipe.
 
+### Notifications push sur téléphone (facultatif, gratuit)
+
+Elles arrivent sur l'écran de l'appareil **même application fermée** : stock bas au moment où une vente
+fait passer un produit sous son seuil, annulation de vente, retour client, écart de caisse (envoyés aux
+administrateurs et gérants, sauf à l'auteur de l'action), et un résumé le matin si des alertes sont à traiter.
+
+1. Générez une paire de clés, **une seule fois** (sur votre poste) :
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+2. Ajoutez dans Coolify (et dans votre `.env` local pour tester) :
+
+| Variable | Valeur |
+|---|---|
+| `VAPID_PUBLIC_KEY` | la clé publique affichée |
+| `VAPID_PRIVATE_KEY` | la clé privée affichée (**secrète**) |
+| `VAPID_SUBJECT` | `mailto:votre.adresse@exemple.com` |
+
+3. Chaque personne active les notifications **sur chaque appareil** : *Mon profil → Notifications sur
+   téléphone → Activer*, puis *Envoyer une notification de test*.
+4. Le résumé du matin part avec la même tâche planifiée que les emails (`/api/cron/alertes`).
+
+À savoir :
+- Il faut **HTTPS** (c'est le cas sur le domaine Coolify ; `localhost` fonctionne aussi pour tester).
+- **Ne changez pas les clés VAPID** après coup : tous les appareils déjà activés devraient être réactivés.
+- **iPhone** : les notifications ne fonctionnent qu'après avoir ajouté l'application à l'écran d'accueil
+  (Safari → Partager → *Sur l'écran d'accueil*), puis en l'ouvrant depuis son icône (iOS 16.4 minimum).
+- Pour recevoir les alertes sur un téléphone Android, Chrome doit être autorisé à envoyer des notifications.
+
 ### WhatsApp
 
 Aucune configuration : les boutons « Relancer sur WhatsApp » (page Clients) et « Envoyer par WhatsApp »
@@ -105,4 +136,5 @@ ADMIN_EMAIL="vous@exemple.com" ADMIN_NOM="Aïcha" ADMIN_PASSWORD="un-mot-de-pass
 - [ ] Une sauvegarde a été créée **et restaurée** avec succès.
 - [ ] Les rôles ont été vérifiés avec un compte de chaque type (un caissier ne voit ni prix d'achat, ni marges, ni statistiques).
 - [ ] Les mots de passe initiaux ont été changés depuis « Mon profil ».
+- [ ] (si push) les clés VAPID sont définies et la notification de test arrive sur un téléphone.
 - [ ] (si emails) le bouton « Envoyer un email de test » fonctionne et la tâche quotidienne est créée.

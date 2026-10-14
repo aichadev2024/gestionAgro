@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exigerRole } from "@/lib/droits";
 import { messageErreur, type EtatFormulaire } from "@/lib/erreurs";
+import { formatFCFA } from "@/lib/format";
+import { notifierEvenement } from "@/server/services/push";
 import { creerRetour } from "@/server/services/retours";
 
 const quantite = z
@@ -30,7 +32,16 @@ export async function creerRetourAction(
         motif: z.string().trim().min(1, "Motif obligatoire").max(200),
       })
       .parse({ mode: fd.get("mode"), motif: fd.get("motif") });
-    await creerRetour(user.id, venteId, lignes, d.mode, d.motif, fd.get("remisEnStock") === "on");
+    const retour = await creerRetour(user.id, venteId, lignes, d.mode, d.motif, fd.get("remisEnStock") === "on");
+    void notifierEvenement(
+      ["ADMIN", "GERANT"],
+      {
+        title: `Retour client : ${retour.numero}`,
+        body: `${formatFCFA(retour.total)} remboursés par ${user.name} · ${d.motif}`,
+        url: `/ventes/${venteId}`,
+      },
+      { exclure: user.id },
+    );
     revalidatePath(`/ventes/${venteId}`);
     revalidatePath("/ventes");
     revalidatePath("/stocks");

@@ -143,10 +143,12 @@ describe("Route planifiée /api/cron/alertes", () => {
   it("accepte le bon jeton et prévient si l'email n'est pas configuré", async () => {
     process.env.CRON_SECRET = "un-secret-assez-long-123";
     delete process.env.SMTP_HOST;
+    delete process.env.VAPID_PUBLIC_KEY;
     const res = await appel("un-secret-assez-long-123");
     expect(res.status).toBe(200);
     const corps = await res.json();
     expect(corps.envoyes).toBe(0);
-    expect(corps.raison).toContain("SMTP");
+    expect(corps.email.raison).toContain("SMTP");
+    expect(corps.push.raison).toContain("VAPID");
   });
 });

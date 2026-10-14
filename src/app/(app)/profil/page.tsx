@@ -1,7 +1,9 @@
 import { exigerAccesModule } from "@/lib/acces-page";
 import { LIBELLE_ROLE } from "@/lib/roles";
 import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
+import { ActivationPush } from "@/components/activation-push";
 import { prisma } from "@/lib/prisma";
+import { clePubliquePush, nombreAppareils } from "@/server/services/push";
 import {
   changerMonMotDePasseAction,
   envoyerEmailTestAction,
@@ -10,6 +12,7 @@ import {
 
 export default async function PageProfil() {
   const user = await exigerAccesModule("/profil");
+  const nbAppareils = await nombreAppareils(user.id);
   const prefs = await prisma.user.findUniqueOrThrow({
     where: { id: user.id },
     select: { recoitAlertes: true },
@@ -25,6 +28,16 @@ export default async function PageProfil() {
         <div className="mt-2 inline-block rounded-full bg-brand-soft px-3 py-1 text-xs font-semibold text-brand">
           {LIBELLE_ROLE[user.role]}
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:p-6">
+        <h2 className="mb-1 text-lg font-bold text-brand">Notifications sur téléphone</h2>
+        <p className="mb-3 text-sm text-gray-500">
+          Recevez une alerte directement sur l&apos;appareil, même application fermée : stock bas, annulation
+          de vente, écart de caisse, et un résumé le matin. À activer sur chaque appareil que vous utilisez
+          ({nbAppareils} appareil(s) actif(s) pour votre compte).
+        </p>
+        <ActivationPush clePublique={clePubliquePush()} />
       </section>
 
       <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm md:p-6">

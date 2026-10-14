@@ -42,7 +42,7 @@ tests/            tests d'intégration Vitest sur une base dédiée (nom finissa
 - Numérotation des pièces via la table `Sequence` (`FAC-`, `BC-`, `PROD-`, `AVO-`, `TRF-`), dans la même transaction.
 - Vente à crédit refusée si solde client + **montant payé à crédit** > `plafondCredit`. Le solde baisse via `EncaissementClient` ou un retour remboursé « sur le compte ».
 - Actions sensibles (prix, remise, annulation, retour, perte, ajustement, comptes) enregistrées dans `JournalAction`.
-- Notifications : alertes calculées à la demande par rôle (`services/notifications.ts`) — cloche + page `/notifications`. Résumé quotidien par email (SMTP/nodemailer) via `/api/cron/alertes` protégé par `CRON_SECRET`. WhatsApp = liens `wa.me` (`lib/whatsapp.ts`), pas d'API.
+- Notifications : alertes calculées à la demande par rôle (`services/notifications.ts`) — cloche + page `/notifications`. Résumé quotidien par email (SMTP/nodemailer) via `/api/cron/alertes` protégé par `CRON_SECRET`. Push téléphone : Web Push (`web-push`, clés VAPID, `public/sw.js`, table `AbonnementPush`) — endpoints limités aux services des navigateurs (anti-SSRF), `notifierEvenement` ne lève jamais d'erreur. WhatsApp = liens `wa.me` (`lib/whatsapp.ts`), pas d'API.
 - Gain net = marge brute (CA net des retours − coût d'achat des lots vendus) − pertes ± écarts d'inventaire − dépenses.
 - Dates affichées au format JJ/MM/AAAA.
 

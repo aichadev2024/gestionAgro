@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { creerTransport, envoyerResumes } from "@/server/services/alertes-email";
+import { creerEnvoyeur, envoyerResumesPush } from "@/server/services/push";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,8 @@ function secretValide(fourni: string, attendu: string) {
 }
 
 /**
- * Appelée chaque jour par une tâche planifiée (Coolify) :
+ * Appelée chaque jour par une tâche planifiée (Coolify) : envoie le résumé par email et par notification push.
+ *
  *   curl -H "Authorization: Bearer $CRON_SECRET" https://votre-domaine/api/cron/alertes
  * Sans CRON_SECRET configuré, la route est désactivée (jamais ouverte au public).
  */
@@ -26,11 +28,16 @@ async function traiter(request: Request) {
   }
 
   const smtp = creerTransport();
-  if (!smtp) {
-    return Response.json({ envoyes: 0, raison: "Envoi d'emails non configuré (variables SMTP_*)." });
-  }
-  const bilan = await envoyerResumes(smtp.transport, smtp.expediteur);
-  return Response.json(bilan);
+  const envoyeurPush = creerEnvoyeur();
+  const email = smtp
+    ? await envoyerResumes(smtp.transport, smtp.expediteur)
+    : { raison: "Envoi d'emails non configuré (variables SMTP_*)." };
+  const push = envoyeurPush
+    ? await envoyerResumesPush(envoyeurPush)
+    : { raison: "Notifications push non configurées (clés VAPID)." };
+
+  // Compatibilité : le nombre d'emails envoyés reste au premier niveau de la réponse.
+  return Response.json({ envoyes: "envoyes" in email ? email.envoyes : 0, email, push });
 }
 
 export const GET = traiter;

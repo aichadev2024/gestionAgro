@@ -14,7 +14,18 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["exceljs", "pdf-lib", "bcryptjs", "pg"],
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: entetesSecurite }];
+    return [
+      { source: "/:path*", headers: entetesSecurite },
+      {
+        // Le navigateur doit toujours récupérer la dernière version du service worker.
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+        ],
+      },
+    ];
   },
   turbopack: {
     rules: {
