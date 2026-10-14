@@ -3,6 +3,8 @@ import { formatFCFA } from "@/lib/format";
 import { LIBELLE_ROLE } from "@/lib/roles";
 import { VentesParJour } from "@/components/graphiques-ventes";
 import { indicateursDuJour } from "@/server/services/dashboard";
+import Link from "next/link";
+import { notificationsPour } from "@/server/services/notifications";
 import { statistiquesVentes } from "@/server/services/statistiques";
 
 const COULEURS = {
@@ -36,7 +38,11 @@ function Carte({
 
 export default async function TableauDeBord() {
   const user = await exigerAccesModule("/");
-  const [k, semaine] = await Promise.all([indicateursDuJour(), statistiquesVentes(7)]);
+  const [k, semaine, alertes] = await Promise.all([
+    indicateursDuJour(),
+    statistiquesVentes(7),
+    notificationsPour(user),
+  ]);
   const initiales = user.name
     .split(" ")
     .map((m) => m[0])
@@ -81,6 +87,35 @@ export default async function TableauDeBord() {
         <Carte libelle="Péremption sous 30 j" valeur={k.lotsProchesPeremption} teinte="rouge" />
         <Carte libelle="Montant du jour" valeur={formatFCFA(k.montantVentes)} teinte="vert" />
       </div>
+
+      {alertes.length > 0 && (
+        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-brand">À traiter</h2>
+            <Link href="/notifications" className="text-sm font-semibold text-brand hover:underline">
+              Tout voir ({alertes.length})
+            </Link>
+          </div>
+          <ul className="space-y-2">
+            {alertes.slice(0, 4).map((n) => (
+              <li key={n.id}>
+                <Link
+                  href={n.href}
+                  className={`block rounded-xl border-l-4 bg-gray-50 px-4 py-2 text-sm hover:bg-brand-soft ${
+                    n.niveau === "critique"
+                      ? "border-l-tomate"
+                      : n.niveau === "attention"
+                        ? "border-l-accent"
+                        : "border-l-brand"
+                  }`}
+                >
+                  <span className="font-semibold">{n.titre}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-lg font-bold text-brand">Ventes des 7 derniers jours</h2>
