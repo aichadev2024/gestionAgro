@@ -8,7 +8,7 @@ Interface en français, utilisable sur ordinateur, tablette et téléphone.
 
 ## Stack
 
-Next.js (App Router) · TypeScript · Tailwind CSS · Prisma 7 + PostgreSQL · Auth.js · Zod · Recharts
+Next.js (App Router) · TypeScript · Tailwind CSS · Prisma 7 + PostgreSQL · Auth.js · Zod · Recharts · exceljs · pdf-lib · Vitest
 
 ## Installation
 
@@ -27,6 +27,19 @@ caractères spéciaux (`* ! @ #`…), il doit être encodé dans `DATABASE_URL`.
 
 Après chaque modification de `prisma/schema.prisma`, relancer `npx prisma generate`
 puis redémarrer le serveur de développement.
+
+## Tests
+
+```bash
+npm test
+```
+
+Les tests utilisent une base séparée (`<nom de votre base>_test`, créée automatiquement) : ils ne touchent jamais
+à vos données de développement.
+
+## Déploiement
+
+Voir [DEPLOIEMENT.md](DEPLOIEMENT.md) (Coolify, base PostgreSQL, premier administrateur, sauvegardes).
 
 ## Comptes de test (seed)
 

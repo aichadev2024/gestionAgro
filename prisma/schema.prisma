@@ -47,6 +47,7 @@ enum TypeMouvement {
   PRODUCTION_ENTREE
   PRODUCTION_SORTIE
   AJUSTEMENT
+  RETOUR_CLIENT
 }
 
 model User {
@@ -85,6 +86,7 @@ model Unite {
 model Produit {
   id          String   @id @default(cuid())
   code        String   @unique
+  codeBarres  String?  @unique
   nom         String
   categorieId String
   uniteId     String
@@ -124,12 +126,13 @@ model Fournisseur {
 }
 
 model Client {
-  id            String  @id @default(cuid())
+  id            String               @id @default(cuid())
   nom           String
   telephone     String?
-  plafondCredit Int     @default(0)
-  solde         Int     @default(0)
+  plafondCredit Int                  @default(0)
+  solde         Int                  @default(0)
   ventes        Vente[]
+  encaissements EncaissementClient[]
 }
 
 model Achat {
@@ -143,8 +146,9 @@ model Achat {
   motifAnnulation String?
   annuleParId     String?
 
-  fournisseur Fournisseur  @relation(fields: [fournisseurId], references: [id])
+  fournisseur Fournisseur     @relation(fields: [fournisseurId], references: [id])
   lignes      LigneAchat[]
+  paiements   PaiementAchat[]
 }
 
 model LigneAchat {
@@ -209,6 +213,7 @@ model Vente {
   caissier  User         @relation(fields: [caissierId], references: [id])
   lignes    LigneVente[]
   paiements Paiement[]
+  retours   Retour[]
 }
 
 model LigneVente {
@@ -222,13 +227,15 @@ model LigneVente {
   vente   Vente           @relation(fields: [venteId], references: [id])
   produit Produit         @relation(fields: [produitId], references: [id])
   lots    LigneVenteLot[]
+  retours LigneRetour[]
 }
 
 model LigneVenteLot {
-  id           String  @id @default(cuid())
-  ligneVenteId String
-  lotId        String
-  quantite     Decimal @db.Decimal(14, 3)
+  id                String  @id @default(cuid())
+  ligneVenteId      String
+  lotId             String
+  quantite          Decimal @db.Decimal(14, 3)
+  quantiteRetournee Decimal @default(0) @db.Decimal(14, 3)
 
   ligneVente LigneVente @relation(fields: [ligneVenteId], references: [id])
   lot        Lot        @relation(fields: [lotId], references: [id])
@@ -311,4 +318,96 @@ model ConsommationProduction {
 
   production Production @relation(fields: [productionId], references: [id])
   lot        Lot        @relation(fields: [lotId], references: [id])
+}
+
+model EncaissementClient {
+  id        String       @id @default(cuid())
+  clientId  String
+  montant   Int
+  mode      ModePaiement
+  note      String?
+  creeParId String
+  creeLe    DateTime     @default(now())
+
+  client Client @relation(fields: [clientId], references: [id])
+
+  @@index([creeLe])
+}
+
+model PaiementAchat {
+  id        String       @id @default(cuid())
+  achatId   String
+  montant   Int
+  mode      ModePaiement
+  creeParId String
+  creeLe    DateTime     @default(now())
+
+  achat Achat @relation(fields: [achatId], references: [id])
+}
+
+model Depense {
+  id              String       @id @default(cuid())
+  categorie       String
+  libelle         String
+  montant         Int
+  mode            ModePaiement
+  dateDepense     DateTime
+  statut          StatutPiece  @default(VALIDEE)
+  creeParId       String
+  creeLe          DateTime     @default(now())
+  motifAnnulation String?
+  annuleParId     String?
+
+  @@index([dateDepense])
+}
+
+model Retour {
+  id                String       @id @default(cuid())
+  numero            String       @unique
+  venteId           String
+  motif             String
+  total             Int
+  modeRemboursement ModePaiement // CREDIT = déduit du solde du client
+  remisEnStock      Boolean      @default(true)
+  creeParId         String
+  creeLe            DateTime     @default(now())
+
+  vente  Vente         @relation(fields: [venteId], references: [id])
+  lignes LigneRetour[]
+
+  @@index([creeLe])
+}
+
+model LigneRetour {
+  id           String  @id @default(cuid())
+  retourId     String
+  ligneVenteId String
+  quantite     Decimal @db.Decimal(14, 3)
+  montant      Int
+  cout         Int     @default(0)
+
+  retour     Retour     @relation(fields: [retourId], references: [id])
+  ligneVente LigneVente @relation(fields: [ligneVenteId], references: [id])
+}
+
+model ClotureCaisse {
+  id        String   @id @default(cuid())
+  jour      DateTime @db.Date
+  attendu   Int
+  compte    Int
+  ecart     Int
+  note      String?
+  creeParId String
+  creeLe    DateTime @default(now())
+
+  @@unique([jour, creeParId])
+}
+
+model TentativeConnexion {
+  id      String   @id @default(cuid())
+  email   String
+  reussie Boolean
+  creeLe  DateTime @default(now())
+
+  @@index([email, creeLe])
 }

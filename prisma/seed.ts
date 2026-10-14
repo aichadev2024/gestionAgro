@@ -10,6 +10,11 @@ const prisma = new PrismaClient({
 const MOT_DE_PASSE_TEST = "Test1234!"; // données de test uniquement
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_TEST_SEED !== "yes") {
+    throw new Error(
+      "Seed de test refusé en production (comptes avec mot de passe connu). Utilisez prisma/seed-admin.ts.",
+    );
+  }
   const hash = await bcrypt.hash(MOT_DE_PASSE_TEST, 10);
   const utilisateurs: { nom: string; email: string; role: Role }[] = [
     { nom: "Administrateur", email: "admin@agro.test", role: "ADMIN" },
