@@ -110,3 +110,19 @@ export async function reinitialiserMotDePasse(auteurId: string, id: string, motD
     }),
   ]);
 }
+
+/** Changement du mot de passe par l'utilisateur lui-même : l'ancien mot de passe est exigé. */
+export async function changerMonMotDePasse(id: string, actuel: string, nouveau: string) {
+  verifierMotDePasse(nouveau);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id } });
+  if (!(await bcrypt.compare(actuel, user.motDePasse))) {
+    throw new ErreurMetier("Le mot de passe actuel est incorrect.");
+  }
+  if (actuel === nouveau) throw new ErreurMetier("Choisissez un mot de passe différent de l'ancien.");
+  await prisma.$transaction([
+    prisma.user.update({ where: { id }, data: { motDePasse: await bcrypt.hash(nouveau, 10) } }),
+    prisma.journalAction.create({
+      data: { auteurId: id, action: "CHANGEMENT_MOT_DE_PASSE", entite: "User", entiteId: id },
+    }),
+  ]);
+}

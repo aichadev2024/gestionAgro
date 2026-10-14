@@ -22,9 +22,13 @@ export function NavMenu({
     <div className="mx-auto w-full max-w-[1400px] px-4 pt-4 md:px-6 print:hidden">
       <header className="flex items-center justify-between rounded-2xl bg-brand px-5 py-5 shadow-lg md:px-8 md:py-6">
         <Logo variante="sombre" taille={46} />
-        <span className="rounded-full border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent">
-          {libelleRole}
-        </span>
+        <Link
+          href="/profil"
+          title="Mon profil et mot de passe"
+          className="rounded-full border border-accent/50 bg-accent/15 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/25"
+        >
+          {libelleRole} · Mon profil
+        </Link>
       </header>
 
       <div className="mt-4 flex items-center gap-3 border-b border-gray-200 pb-4">

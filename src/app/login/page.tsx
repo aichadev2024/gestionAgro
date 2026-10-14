@@ -50,6 +50,9 @@ export default function PageConnexion() {
           {enCours ? "Connexion…" : "Se connecter"}
         </button>
       </form>
+      <p className="mt-4 max-w-sm text-center text-xs text-gray-500">
+        Mot de passe oublié ? Demandez à votre administrateur de le réinitialiser.
+      </p>
       <p className="mt-6 text-center text-xs text-gray-500">
         {MARQUE.nom} {MARQUE.signature}
       </p>
