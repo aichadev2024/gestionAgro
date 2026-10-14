@@ -57,6 +57,8 @@ model User {
   motDePasse String
   role       Role
   actif      Boolean  @default(true)
+  recoitAlertes    Boolean   @default(false)
+  derniereAlerteLe DateTime?
   creeLe     DateTime @default(now())
 
   ventes  Vente[]

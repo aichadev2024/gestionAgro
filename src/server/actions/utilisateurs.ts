@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { exigerRole } from "@/lib/droits";
 import { ErreurMetier, messageErreur, type EtatFormulaire } from "@/lib/erreurs";
+import { prisma } from "@/lib/prisma";
 import { ROLES } from "@/lib/roles";
+import { creerTransport, envoyerEmailTest } from "@/server/services/alertes-email";
 import {
   basculerActif,
   changerMonMotDePasse,
@@ -94,6 +96,39 @@ export async function changerMonMotDePasseAction(
       throw new ErreurMetier("La confirmation ne correspond pas au nouveau mot de passe.");
     }
     await changerMonMotDePasse(user.id, String(fd.get("actuel") ?? ""), nouveau);
+    return { ok: true };
+  } catch (e) {
+    return { erreur: messageErreur(e) };
+  }
+}
+
+export async function preferenceAlertesAction(
+  _: EtatFormulaire,
+  fd: FormData,
+): Promise<EtatFormulaire> {
+  try {
+    const user = await exigerRole();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { recoitAlertes: fd.get("recoitAlertes") === "on" },
+    });
+    revalidatePath("/profil");
+    return { ok: true };
+  } catch (e) {
+    return { erreur: messageErreur(e) };
+  }
+}
+
+export async function envoyerEmailTestAction(): Promise<EtatFormulaire> {
+  try {
+    const user = await exigerRole();
+    const smtp = creerTransport();
+    if (!smtp) {
+      throw new ErreurMetier(
+        "L'envoi d'emails n'est pas encore configuré sur le serveur (variables SMTP_*). Voir DEPLOIEMENT.md.",
+      );
+    }
+    await envoyerEmailTest(smtp.transport, smtp.expediteur, user.email, user.name);
     return { ok: true };
   } catch (e) {
     return { erreur: messageErreur(e) };

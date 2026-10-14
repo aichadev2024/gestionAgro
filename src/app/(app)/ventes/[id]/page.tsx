@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { exigerAccesModule } from "@/lib/acces-page";
 import { formatDate, formatFCFA } from "@/lib/format";
 import { Logo } from "@/components/logo";
+import { MARQUE } from "@/lib/marque";
+import { lienWhatsApp } from "@/lib/whatsapp";
 import { BoutonImprimer } from "@/components/bouton-imprimer";
 import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
 import { annulerVenteAction } from "@/server/actions/ventes";
@@ -27,6 +29,10 @@ export default async function PageFacture({ params }: PageProps<"/ventes/[id]">)
     retoursDeVente(vente.id),
     quantitesRetournables(vente.id),
   ]);
+  const lienClient = lienWhatsApp(
+    vente.client?.telephone,
+    `Bonjour ${vente.client?.nom ?? ""}, merci pour votre achat chez ${MARQUE.nom}. Facture ${vente.numero} du ${formatDate(vente.creeLe)} : ${formatFCFA(vente.total)}.`,
+  );
   const peutRetourner =
     vente.statut === "VALIDEE" && (user.role === "ADMIN" || user.role === "GERANT");
   const peutAnnuler =
@@ -53,6 +59,16 @@ export default async function PageFacture({ params }: PageProps<"/ventes/[id]">)
           >
             Ticket de caisse
           </Link>
+          {lienClient && (
+            <a
+              href={lienClient}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg bg-[#25d366] px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90"
+            >
+              Envoyer par WhatsApp
+            </a>
+          )}
           <BoutonImprimer />
         </div>
       </div>

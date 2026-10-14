@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { prisma } from "@/lib/prisma";
+import type { Role } from "@/lib/roles";
 import { notificationsPour } from "@/server/services/notifications";
 import { cloturerCaisse } from "@/server/services/clotures";
 import { creerRecette } from "@/server/services/production";
@@ -8,7 +9,7 @@ import { creerVente } from "@/server/services/ventes";
 import { base, dans, lot, produit } from "./helpers";
 
 const ids = async (c: Awaited<ReturnType<typeof base>>, role: keyof typeof c.users) =>
-  (await notificationsPour({ id: c.users[role], role })).map((n) => n.id);
+  (await notificationsPour({ id: c.users[role], role: role as Role })).map((n) => n.id);
 
 describe("Notifications", () => {
   it("n'affiche rien quand tout est en ordre", async () => {

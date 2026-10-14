@@ -2,6 +2,8 @@ import { exigerAccesModule } from "@/lib/acces-page";
 import { formatDate, formatFCFA } from "@/lib/format";
 import { Champ, Formulaire, classeChamp } from "@/components/formulaire";
 import { encaisserCreanceAction, modifierClientAction } from "@/server/actions/clients";
+import { MARQUE } from "@/lib/marque";
+import { lienWhatsApp } from "@/lib/whatsapp";
 import { creerClient } from "@/server/actions/ventes";
 import { derniersEncaissements, listerClientsAvecSolde } from "@/server/services/clients";
 
@@ -46,6 +48,25 @@ export default async function PageClients() {
             <div className="mt-4 grid gap-6 border-t border-gray-100 pt-4 md:grid-cols-2">
               <div>
                 <h3 className="mb-2 font-bold text-brand">Encaisser un remboursement</h3>
+                {c.solde > 0 &&
+                  (() => {
+                    const lien = lienWhatsApp(
+                      c.telephone,
+                      `Bonjour ${c.nom}, ici ${MARQUE.nom}. Votre solde à régler est de ${formatFCFA(c.solde)}. Merci de passer le régler quand vous le pouvez. Bonne journée !`,
+                    );
+                    return lien ? (
+                      <a
+                        href={lien}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mb-3 inline-block rounded-lg bg-[#25d366] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                      >
+                        Relancer sur WhatsApp
+                      </a>
+                    ) : (
+                      <p className="mb-3 text-xs text-gray-400">Ajoutez un numéro de téléphone pour relancer sur WhatsApp.</p>
+                    );
+                  })()}
                 {c.solde === 0 ? (
                   <p className="text-sm text-gray-500">Ce client ne doit rien.</p>
                 ) : (

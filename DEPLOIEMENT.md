@@ -30,6 +30,44 @@ Guide pour mettre l'application en ligne sur votre VPS (Coolify) avec une base P
 
 Ne mettez **jamais** ces valeurs dans le dépôt Git (le fichier `.env` est ignoré).
 
+### Alertes par email (facultatif, gratuit avec Gmail)
+
+Sans ces variables, l'application fonctionne normalement : seules les notifications **dans
+l'application** (la cloche) sont actives.
+
+1. Sur le compte Gmail qui enverra les emails : activez la **validation en deux étapes**, puis créez un
+   **mot de passe d'application** (Compte Google → Sécurité → Mots de passe des applications).
+   Ce n'est **pas** votre mot de passe Gmail habituel.
+2. Ajoutez ces variables dans Coolify :
+
+| Variable | Valeur |
+|---|---|
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `587` |
+| `SMTP_USER` | l'adresse Gmail d'envoi |
+| `SMTP_PASSWORD` | le mot de passe d'application (16 caractères) |
+| `SMTP_FROM` | `Sahelia <votre.adresse@gmail.com>` |
+| `APP_URL` | l'adresse publique de l'application (pour le lien dans l'email) |
+| `CRON_SECRET` | une valeur aléatoire de 16+ caractères (sans elle, la route d'envoi reste fermée) |
+
+3. Dans l'application, chacun active le résumé depuis **Mon profil → Alertes par email**, et peut
+   cliquer sur **Envoyer un email de test** pour vérifier la configuration.
+4. Dans Coolify → l'application → **Scheduled Tasks** : créez une tâche quotidienne (par exemple
+   `0 7 * * *`, tous les jours à 7 h) avec la commande :
+
+```bash
+curl -fsS -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/alertes
+```
+
+Chaque personne reçoit **au plus un email par jour**, et **aucun s'il n'y a rien à signaler**.
+Gmail limite l'envoi à environ 500 emails par jour : c'est largement suffisant pour une équipe.
+
+### WhatsApp
+
+Aucune configuration : les boutons « Relancer sur WhatsApp » (page Clients) et « Envoyer par WhatsApp »
+(facture) ouvrent WhatsApp avec le message prêt, il suffit d'appuyer sur Envoyer. Le numéro d'un client
+sans indicatif reçoit celui du pays défini dans `src/lib/marque.ts` (`indicatifPays`, 223 = Mali).
+
 ## 4. Premier déploiement
 
 Au démarrage, le conteneur applique tout seul les migrations (`prisma migrate deploy`).
@@ -67,3 +105,4 @@ ADMIN_EMAIL="vous@exemple.com" ADMIN_NOM="Aïcha" ADMIN_PASSWORD="un-mot-de-pass
 - [ ] Une sauvegarde a été créée **et restaurée** avec succès.
 - [ ] Les rôles ont été vérifiés avec un compte de chaque type (un caissier ne voit ni prix d'achat, ni marges, ni statistiques).
 - [ ] Les mots de passe initiaux ont été changés depuis « Mon profil ».
+- [ ] (si emails) le bouton « Envoyer un email de test » fonctionne et la tâche quotidienne est créée.
